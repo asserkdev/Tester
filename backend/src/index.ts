@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './storage/database.js';
 import apiRouter from './api/index.js';
@@ -6,25 +7,25 @@ import './analyzers/index.js';
 
 dotenv.config();
 
+// CommonJS compatibility for __dirname
+const appDir = __dirname;
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from frontend dist
+const frontendDistPath = path.join(appDir, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// API routes
 app.use('/api/v1', apiRouter);
 
-app.get('/', (req, res) => {
-  res.json({
-    name: 'L.A.I. Web Inspector API',
-    version: '1.0.0',
-    description: 'Automated website analysis platform',
-    endpoints: {
-      health: '/api/v1/health',
-      scans: '/api/v1/scans',
-      analyzers: '/api/v1/analyzers',
-    },
-  });
+// Serve frontend for all non-API routes (SPA support)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 initializeDatabase();
@@ -33,10 +34,11 @@ app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║     L.A.I. Web Inspector - Backend API                    ║
+║     L.A.I. Web Inspector - Complete Platform             ║
 ║                                                           ║
 ║     Server running on http://localhost:${PORT}               ║
-║     API available at http://localhost:${PORT}/api/v1         ║
+║     Frontend available at http://localhost:${PORT}         ║
+║     API available at http://localhost:${PORT}/api/v1       ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
