@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build outputs
+backend/dist/
+frontend/dist/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Data
+data/*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
