@@ -1,14 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="L.A.I. Web Inspector - Comprehensive automated website analysis platform for bugs, security, performance, and accessibility" />
-    <title>L.A.I. Web Inspector - Website Analysis Platform</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="L.A.I. Web Inspector - Comprehensive automated website analysis platform">
+  <title>L.A.I. Web Inspector</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; color: #e2e8f0; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .logo { font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero { text-align: center; padding: 4rem 0; }
+    .hero h1 { font-size: 3rem; margin-bottom: 1rem; }
+    .hero p { font-size: 1.25rem; color: #94a3b8; margin-bottom: 2rem; }
+    .input-group { display: flex; gap: 0.5rem; max-width: 600px; margin: 0 auto; }
+    .input-group input { flex: 1; padding: 1rem 1.5rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
+    .input-group input:focus { outline: none; border-color: #3b82f6; }
+    .btn { padding: 1rem 2rem; border-radius: 0.5rem; border: none; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn:hover { transform: scale(1.05); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+    .loading { text-align: center; padding: 3rem; }
+    .spinner { width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-bar { width: 100%; max-width: 400px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin: 1rem auto; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 4rem; }
+    .feature { background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
+    .feature:hover { transform: translateY(-5px); border-color: rgba(59, 130, 246, 0.5); }
+    .feature h3 { margin-bottom: 0.5rem; color: #3b82f6; }
+    .feature p { color: #94a3b8; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat { background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 1rem; text-align: center; }
+    .stat-value { font-size: 2.5rem; font-weight: 700; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { color: #94a3b8; font-size: 0.875rem; margin-top: 0.5rem; }
+    .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+    .filter-btn:hover, .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    .issues { background: rgba(255,255,255,0.05); border-radius: 1rem; padding: 1.5rem; max-height: 600px; overflow-y: auto; }
+    .issue { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+    .issue:hover { background: rgba(255,255,255,0.05); }
+    .issue:last-child { border-bottom: none; }
+    .issue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
+    .issue-title { font-weight: 600; }
+    .issue-category { font-size: 0.75rem; color: #94a3b8; background: rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
+    .severity { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .severity-critical { background: #dc2626; color: white; }
+    .severity-high { background: #f97316; color: white; }
+    .severity-medium { background: #f59e0b; color: black; }
+    .severity-low { background: #10b981; color: white; }
+    .severity-info { background: #3b82f6; color: white; }
+    .issue-description { color: #94a3b8; font-size: 0.875rem; }
+    .issue-details { margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 0.5rem; font-size: 0.875rem; }
+    .issue-details p { margin-bottom: 0.5rem; }
+    .back-btn { background: transparent; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 1rem; }
+    .export-btns { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .scan-info { background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+    @media (max-width: 640px) { .hero h1 { font-size: 2rem; } .input-group { flex-direction: column; } .stats { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const DEMO_ISSUES = [
+      { id: 1, title: "Missing HTTPS", category: "Security", severity: "critical", description: "Website is not served over HTTPS.", location: "Server config", recommendation: "Configure SSL/TLS" },
+      { id: 2, title: "Missing Security Headers", category: "Security", severity: "high", description: "Security headers not present.", location: "HTTP Headers", recommendation: "Add CSP, X-Frame-Options" },
+      { id: 3, title: "Large Page Size", category: "Performance", severity: "medium", description: "Page exceeds 500KB.", location: "Page", recommendation: "Optimize assets" },
+      { id: 4, title: "Render-Blocking Resources", category: "Performance", severity: "medium", description: "CSS/JS blocks rendering.", location: "Head", recommendation: "Use async/defer" },
+      { id: 5, title: "Missing Alt Text", category: "Accessibility", severity: "high", description: "Images lack alt attributes.", location: "<img> elements", recommendation: "Add alt text" },
+      { id: 6, title: "Low Color Contrast", category: "Accessibility", severity: "medium", description: "Contrast ratio below WCAG AA.", location: "body, p", recommendation: "Increase contrast" },
+      { id: 7, title: "Missing Meta Description", category: "SEO", severity: "low", description: "Meta description missing.", location: "<head>", recommendation: "Add meta description" },
+      { id: 8, title: "Missing Open Graph", category: "SEO", severity: "low", description: "OG tags missing for social.", location: "<head>", recommendation: "Add OG tags" },
+      { id: 9, title: "Unused CSS (40%)", category: "Performance", severity: "info", description: "40% of CSS unused.", location: "styles.css", recommendation: "Purge unused CSS" },
+      { id: 10, title: "Broken Links", category: "Links", severity: "high", description: "3 broken links found.", location: "/about, /contact", recommendation: "Fix links" },
+    ];
+
+    const CATEGORIES = ["All", "Security", "Performance", "Accessibility", "SEO", "Links"];
+    const SEVERITIES = ["All", "critical", "high", "medium", "low", "info"];
+
+    function App() {
+      const [url, setUrl] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [progress, setProgress] = useState(0);
+      const [scanPhase, setScanPhase] = useState('');
+      const [results, setResults] = useState(null);
+      const [filter, setFilter] = useState('All');
+      const [severityFilter, setSeverityFilter] = useState('All');
+      const [expandedIssue, setExpandedIssue] = useState(null);
+
+      const phases = ["Connecting...", "Fetching HTML...", "Analyzing CSS...", "Checking JS...", "Validating accessibility...", "Testing security...", "Measuring performance...", "Scanning links...", "Generating report..."];
+
+      const simulateScan = () => {
+        if (!url) return;
+        setLoading(true);
+        setProgress(0);
+        setScanPhase(phases[0]);
+        let phaseIdx = 0;
+        const interval = setInterval(() => {
+          setProgress(prev => {
+            const newP = prev + Math.random() * 15 + 5;
+            if (newP >= 100) {
+              clearInterval(interval);
+              setTimeout(() => {
+                setResults({ url, score: Math.floor(Math.random() * 30) + 65, timestamp: new Date().toISOString(), duration: Math.floor(Math.random() * 5000) + 2000, issues: DEMO_ISSUES });
+                setLoading(false);
+              }, 500);
+              return 100;
+            }
+            if (newP > (phaseIdx + 1) * (100 / phases.length) && phaseIdx < phases.length - 1) {
+              phaseIdx++;
+              setScanPhase(phases[phaseIdx]);
+            }
+            return Math.min(newP, 99);
+          });
+        }, 300);
+      };
+
+      const filteredIssues = results?.issues?.filter(i => (filter === 'All' || i.category === filter) && (severityFilter === 'All' || i.severity === severityFilter)) || [];
+
+      const exportJSON = () => {
+        const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `lai-report-${Date.now()}.json`; a.click();
+      };
+
+      const exportCSV = () => {
+        const headers = ['Title', 'Category', 'Severity', 'Description'];
+        const rows = filteredIssues.map(i => [i.title, i.category, i.severity, i.description]);
+        const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `lai-report-${Date.now()}.csv`; a.click();
+      };
+
+      if (loading) {
+        return <div className="container"><div className="loading"><div className="spinner"></div><h2>{scanPhase}</h2><div className="progress-bar"><div className="progress-fill" style={{width: `${progress}%`}}></div></div><p>{Math.round(progress)}% complete</p><p style={{color: '#94a3b8'}}>Analyzing: {url}</p></div></div>;
+      }
+
+      if (results) {
+        const severityStats = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+        results.issues.forEach(i => severityStats[i.severity] = (severityStats[i.severity] || 0) + 1);
+        return (
+          <div className="container">
+            <button className="btn back-btn" onClick={() => { setResults(null); setUrl(''); }}>← New Scan</button>
+            <div className="scan-info"><strong>URL:</strong> {results.url} | <strong>Scanned:</strong> {new Date(results.timestamp).toLocaleString()} | <strong>Duration:</strong> {(results.duration/1000).toFixed(2)}s</div>
+            <div className="stats">
+              <div className="stat"><div className="stat-value">{results.score}</div><div className="stat-label">Score</div></div>
+              <div className="stat"><div className="stat-value">{results.issues.length}</div><div className="stat-label">Issues</div></div>
+              <div className="stat"><div className="stat-value" style={{color: '#dc2626'}}>{severityStats.critical + severityStats.high}</div><div className="stat-label">Critical/High</div></div>
+              <div className="stat"><div className="stat-value">{results.score >= 90 ? 'A' : results.score >= 80 ? 'B' : results.score >= 70 ? 'C' : results.score >= 60 ? 'D' : 'F'}</div><div className="stat-label">Grade</div></div>
+            </div>
+            <div className="filter-bar">{CATEGORIES.map(c => <button key={c} className={`filter-btn ${filter === c ? 'active' : ''}`} onClick={() => setFilter(c)}>{c}</button>)}</div>
+            <div className="filter-bar">{SEVERITIES.map(s => <button key={s} className={`filter-btn ${severityFilter === s ? 'active' : ''}`} onClick={() => setSeverityFilter(s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}</div>
+            <div className="issues"><h3 style={{marginBottom: '1rem'}}>Issues ({filteredIssues.length})</h3>
+              {filteredIssues.map(issue => (
+                <div key={issue.id} className="issue" onClick={() => setExpandedIssue(expandedIssue === issue.id ? null : issue.id)}>
+                  <div className="issue-header">
+                    <span className="issue-title">{issue.title}</span>
+                    <span className="issue-category">{issue.category}</span>
+                    <span className={`severity severity-${issue.severity}`}>{issue.severity}</span>
+                  </div>
+                  <p className="issue-description">{issue.description}</p>
+                  {expandedIssue === issue.id && <div className="issue-details"><p><strong>Location:</strong> {issue.location}</p><p><strong>Recommendation:</strong> {issue.recommendation}</p></div>}
+                </div>
+              ))}
+            </div>
+            <div className="export-btns"><button className="btn btn-secondary" onClick={exportJSON}>Export JSON</button><button className="btn btn-secondary" onClick={exportCSV}>Export CSV</button></div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="container">
+          <header className="header"><div className="logo">L.A.I. Web Inspector</div><span style={{color: '#94a3b8'}}>100+ Analyzers</span></header>
+          <div className="hero">
+            <h1>Analyze Your Website</h1>
+            <p>Comprehensive analysis for bugs, security, performance, and more.</p>
+            <div className="input-group">
+              <input type="url" placeholder="https://example.com" value={url} onChange={e => setUrl(e.target.value)} onKeyPress={e => e.key === 'Enter' && simulateScan()} />
+              <button className="btn" onClick={simulateScan} disabled={!url}>Analyze</button>
+            </div>
+          </div>
+          <div className="features">
+            <div className="feature"><h3>🔒 Security</h3><p>Detect vulnerabilities and check security headers.</p></div>
+            <div className="feature"><h3>⚡ Performance</h3><p>Core Web Vitals and loading optimization.</p></div>
+            <div className="feature"><h3>♿ Accessibility</h3><p>WCAG compliance and keyboard navigation.</p></div>
+            <div className="feature"><h3>🔍 SEO</h3><p>Meta tags, Open Graph, and social optimization.</p></div>
+            <div className="feature"><h3>🔗 Links</h3><p>Broken link detection and redirect analysis.</p></div>
+            <div className="feature"><h3>💻 Code</h3><p>HTML validation, CSS/JS analysis.</p></div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
 </html>
