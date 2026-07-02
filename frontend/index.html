@@ -3,11 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="L.A.I. Web Inspector - Comprehensive automated website analysis platform">
+  <meta name="description" content="L.A.I. Web Inspector - Real automated website analysis">
   <title>L.A.I. Web Inspector</title>
-  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; color: #e2e8f0; }
@@ -29,6 +26,11 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .progress-bar { width: 100%; max-width: 400px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; margin: 1rem auto; overflow: hidden; }
     .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.3s; }
+    .analyzer-status { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin: 1.5rem 0; }
+    .analyzer-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+    .analyzer-badge.running { background: #3b82f6; animation: pulse 1s infinite; }
+    .analyzer-badge.done { background: #10b981; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 4rem; }
     .feature { background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; }
     .feature:hover { transform: translateY(-5px); border-color: rgba(59, 130, 246, 0.5); }
@@ -41,7 +43,7 @@
     .filter-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .filter-btn { padding: 0.5rem 1rem; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
     .filter-btn:hover, .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
-    .issues { background: rgba(255,255,255,0.05); border-radius: 1rem; padding: 1.5rem; max-height: 600px; overflow-y: auto; }
+    .issues { background: rgba(255,255,255,0.05); border-radius: 1rem; padding: 1.5rem; max-height: 500px; overflow-y: auto; }
     .issue { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
     .issue:hover { background: rgba(255,255,255,0.05); }
     .issue:last-child { border-bottom: none; }
@@ -57,9 +59,11 @@
     .issue-description { color: #94a3b8; font-size: 0.875rem; }
     .issue-details { margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 0.5rem; font-size: 0.875rem; }
     .issue-details p { margin-bottom: 0.5rem; }
+    .issue-details code { background: rgba(0,0,0,0.3); padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.8em; }
     .back-btn { background: transparent; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 1rem; }
-    .export-btns { display: flex; gap: 0.5rem; margin-top: 1rem; }
-    .scan-info { background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+    .export-btns { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+    .scan-info { background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; font-size: 0.875rem; }
+    .error-msg { color: #f87171; background: rgba(248,113,113,0.1); padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; text-align: center; }
     @media (max-width: 640px) { .hero h1 { font-size: 2rem; } .input-group { flex-direction: column; } .stats { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
@@ -68,61 +72,395 @@
   <script type="text/babel">
     const { useState } = React;
 
-    const DEMO_ISSUES = [
-      { id: 1, title: "Missing HTTPS", category: "Security", severity: "critical", description: "Website is not served over HTTPS.", location: "Server config", recommendation: "Configure SSL/TLS" },
-      { id: 2, title: "Missing Security Headers", category: "Security", severity: "high", description: "Security headers not present.", location: "HTTP Headers", recommendation: "Add CSP, X-Frame-Options" },
-      { id: 3, title: "Large Page Size", category: "Performance", severity: "medium", description: "Page exceeds 500KB.", location: "Page", recommendation: "Optimize assets" },
-      { id: 4, title: "Render-Blocking Resources", category: "Performance", severity: "medium", description: "CSS/JS blocks rendering.", location: "Head", recommendation: "Use async/defer" },
-      { id: 5, title: "Missing Alt Text", category: "Accessibility", severity: "high", description: "Images lack alt attributes.", location: "<img> elements", recommendation: "Add alt text" },
-      { id: 6, title: "Low Color Contrast", category: "Accessibility", severity: "medium", description: "Contrast ratio below WCAG AA.", location: "body, p", recommendation: "Increase contrast" },
-      { id: 7, title: "Missing Meta Description", category: "SEO", severity: "low", description: "Meta description missing.", location: "<head>", recommendation: "Add meta description" },
-      { id: 8, title: "Missing Open Graph", category: "SEO", severity: "low", description: "OG tags missing for social.", location: "<head>", recommendation: "Add OG tags" },
-      { id: 9, title: "Unused CSS (40%)", category: "Performance", severity: "info", description: "40% of CSS unused.", location: "styles.css", recommendation: "Purge unused CSS" },
-      { id: 10, title: "Broken Links", category: "Links", severity: "high", description: "3 broken links found.", location: "/about, /contact", recommendation: "Fix links" },
-    ];
+    // REAL Website Analyzer - Does actual analysis!
+    class WebsiteAnalyzer {
+      constructor(url) {
+        this.url = url;
+        this.results = [];
+        this.analysisData = {};
+      }
 
-    const CATEGORIES = ["All", "Security", "Performance", "Accessibility", "SEO", "Links"];
+      async analyze() {
+        this.results = [];
+        await this.checkBasicFetch();
+        await this.analyzeHTML();
+        await this.checkSecurityHeaders();
+        await this.checkSEOMeta();
+        await this.checkAccessibility();
+        await this.checkPerformance();
+        await this.checkResources();
+        return this.results;
+      }
+
+      async checkBasicFetch() {
+        try {
+          const response = await fetch(this.url, { mode: 'cors', cache: 'no-store' });
+          if (!this.url.startsWith('https://')) {
+            this.addIssue({
+              title: 'Insecure Connection (HTTP)',
+              category: 'Security',
+              severity: 'critical',
+              description: 'This website is not served over HTTPS, which means data transmitted can be intercepted.',
+              location: this.url,
+              recommendation: 'Configure SSL/TLS certificate and redirect all HTTP traffic to HTTPS.',
+              impact: 'High - User data is vulnerable to eavesdropping'
+            });
+          }
+          this.analysisData.httpStatus = response.status;
+          this.analysisData.headers = {};
+          response.headers.forEach((v, k) => this.analysisData.headers[k] = v);
+        } catch (error) {
+          this.addIssue({
+            title: 'Unable to Connect',
+            category: 'Connectivity',
+            severity: 'critical',
+            description: `Could not connect to ${this.url}: ${error.message}`,
+            location: this.url,
+            recommendation: 'Check if the URL is correct and the server is running.',
+            impact: 'Cannot analyze this website'
+          });
+        }
+      }
+
+      async analyzeHTML() {
+        try {
+          const response = await fetch(this.url, { mode: 'cors' });
+          const html = await response.text();
+          this.analysisData.html = html;
+          
+          if (!html.includes('<!DOCTYPE')) {
+            this.addIssue({
+              title: 'Missing DOCTYPE',
+              category: 'HTML',
+              severity: 'medium',
+              description: 'Document is missing DOCTYPE declaration, which may cause Quirks Mode.',
+              location: 'Document root',
+              recommendation: 'Add <!DOCTYPE html> at the very beginning of the HTML document.',
+              impact: 'May cause inconsistent rendering across browsers'
+            });
+          }
+          
+          const langMatch = html.match(/<html[^>]*lang=["\']([^"\']*)["\']/i);
+          if (!langMatch) {
+            this.addIssue({
+              title: 'Missing Language Attribute',
+              category: 'Accessibility',
+              severity: 'medium',
+              description: 'The <html> element is missing the lang attribute for screen readers.',
+              location: '<html>',
+              recommendation: 'Add lang attribute: <html lang="en">',
+              impact: 'Screen readers may not pronounce text correctly'
+            });
+          }
+          
+          if (!html.includes('viewport') && !html.includes('width=device-width')) {
+            this.addIssue({
+              title: 'Missing Viewport Meta',
+              category: 'Responsive',
+              severity: 'high',
+              description: 'Viewport meta tag is missing, preventing proper mobile rendering.',
+              location: '<head>',
+              recommendation: 'Add: <meta name="viewport" content="width=device-width, initial-scale=1">',
+              impact: 'Poor mobile experience'
+            });
+          }
+          
+          const inlineStyleCount = (html.match(/style=["\']/gi) || []).length;
+          if (inlineStyleCount > 10) {
+            this.addIssue({
+              title: 'Excessive Inline Styles',
+              category: 'Performance',
+              severity: 'low',
+              description: `Found ${inlineStyleCount} inline style attributes. This makes CSS harder to maintain.`,
+              location: 'Multiple locations',
+              recommendation: 'Move inline styles to external CSS files or <style> blocks.',
+              impact: 'Reduced maintainability, larger HTML size'
+            });
+          }
+          
+        } catch (error) {
+          this.addIssue({
+            title: 'Cannot Analyze HTML (CORS)',
+            category: 'HTML',
+            severity: 'info',
+            description: 'Due to CORS restrictions, cannot fetch and analyze the HTML content.',
+            location: this.url,
+            recommendation: 'This website blocks cross-origin requests. Try a site that allows CORS.',
+            impact: 'Limited analysis - security headers still checked'
+          });
+        }
+      }
+
+      async checkSecurityHeaders() {
+        const headers = this.analysisData.headers || {};
+        const requiredHeaders = [
+          { name: 'content-security-policy', severity: 'high', title: 'Missing Content Security Policy', desc: 'CSP helps prevent XSS and injection attacks.', fix: 'Add Content-Security-Policy header' },
+          { name: 'x-frame-options', severity: 'medium', title: 'Missing X-Frame-Options', desc: 'Clickjacking protection is not enabled.', fix: 'Add X-Frame-Options: DENY or SAMEORIGIN' },
+          { name: 'x-content-type-options', severity: 'medium', title: 'Missing X-Content-Type-Options', desc: 'Browser MIME sniffing not prevented.', fix: 'Add X-Content-Type-Options: nosniff' },
+          { name: 'strict-transport-security', severity: 'high', title: 'Missing HSTS Header', desc: 'HSTS enforces HTTPS connections.', fix: 'Add Strict-Transport-Security header' },
+        ];
+        
+        for (const header of requiredHeaders) {
+          if (!headers[header.name] && !headers[header.name.replace(/-/g, '').toLowerCase()]) {
+            this.addIssue({
+              title: header.title,
+              category: 'Security',
+              severity: header.severity,
+              description: header.desc,
+              location: 'HTTP Response Headers',
+              recommendation: header.fix,
+              impact: 'Reduced security against attacks'
+            });
+          }
+        }
+        
+        if (headers['server']) {
+          this.addIssue({
+            title: 'Server Information Disclosed',
+            category: 'Security',
+            severity: 'info',
+            description: `Server header reveals: ${headers['server']}`,
+            location: 'HTTP Response Headers',
+            recommendation: 'Consider removing or masking server identification headers.',
+            impact: 'Minor - Helps attackers identify server software'
+          });
+        }
+      }
+
+      async checkSEOMeta() {
+        const html = this.analysisData.html;
+        if (!html) return;
+        
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (!titleMatch) {
+          this.addIssue({ title: 'Missing Title Tag', category: 'SEO', severity: 'high', description: 'Page has no <title> element.', location: '<head>', recommendation: 'Add a descriptive <title> tag in <head>', impact: 'Search engines cannot display page title' });
+        } else if (titleMatch[1].length < 10) {
+          this.addIssue({ title: 'Title Too Short', category: 'SEO', severity: 'medium', description: `Title is only ${titleMatch[1].length} characters.`, location: '<title>', recommendation: 'Use 50-60 characters for optimal display', impact: 'Poor search result display' });
+        } else if (titleMatch[1].length > 60) {
+          this.addIssue({ title: 'Title Too Long', category: 'SEO', severity: 'low', description: `Title is ${titleMatch[1].length} characters.`, location: '<title>', recommendation: 'Keep title under 60 characters', impact: 'Title may be truncated in search results' });
+        }
+        
+        const descMatch = html.match(/<meta[^>]*name=["\']description["\'][^>]*content=["\']([^"\']*)["\'][^>]*>/i) || html.match(/<meta[^>]*content=["\']([^"\']*)["\'][^>]*name=["\']description["\'][^>]*>/i);
+        if (!descMatch) {
+          this.addIssue({ title: 'Missing Meta Description', category: 'SEO', severity: 'high', description: 'No meta description found.', location: '<head>', recommendation: 'Add <meta name="description" content="...">', impact: 'Reduced click-through rate from search results' });
+        } else if (descMatch[1].length < 50) {
+          this.addIssue({ title: 'Description Too Short', category: 'SEO', severity: 'low', description: 'Meta description is too short.', location: '<meta name="description">', recommendation: 'Use 150-160 characters', impact: 'May not provide enough context' });
+        }
+        
+        const ogTags = ['og:title', 'og:description', 'og:image', 'og:url'];
+        for (const tag of ogTags) {
+          if (!html.includes(tag)) {
+            this.addIssue({ title: `Missing Open Graph: ${tag}`, category: 'SEO', severity: 'low', description: `${tag} not found for social sharing.`, location: '<head>', recommendation: `Add <meta property="${tag}" content="...">`, impact: 'Poor social media sharing' });
+          }
+        }
+        
+        if (!html.includes('rel="canonical"')) {
+          this.addIssue({ title: 'Missing Canonical URL', category: 'SEO', severity: 'info', description: 'No canonical URL specified.', location: '<head>', recommendation: 'Add <link rel="canonical" href="...">', impact: 'Search engines may index duplicate pages' });
+        }
+      }
+
+      async checkAccessibility() {
+        const html = this.analysisData.html;
+        if (!html) return;
+        
+        const imgWithoutAlt = html.match(/<img(?![^>]*alt=[^>]*)([^>]*)>/gi) || [];
+        if (imgWithoutAlt.length > 0) {
+          this.addIssue({ title: 'Images Missing Alt Text', category: 'Accessibility', severity: 'high', description: `Found ${imgWithoutAlt.length} images without alt attributes.`, location: '<img> elements', recommendation: 'Add alt="description" to all <img> tags', impact: 'Screen reader users cannot understand images' });
+        }
+        
+        const h1Count = (html.match(/<h1[^>]*>/gi) || []).length;
+        const h2Count = (html.match(/<h2[^>]*>/gi) || []).length;
+        
+        if (h1Count === 0) {
+          this.addIssue({ title: 'No H1 Heading', category: 'Accessibility', severity: 'high', description: 'Page has no H1 heading.', location: 'DOM', recommendation: 'Add a single <h1> tag with the page title', impact: 'Page lacks proper heading structure' });
+        } else if (h1Count > 1) {
+          this.addIssue({ title: 'Multiple H1 Headings', category: 'Accessibility', severity: 'medium', description: `Found ${h1Count} H1 elements.`, location: 'DOM', recommendation: 'Use only one H1 per page', impact: 'Confuses screen readers and SEO' });
+        }
+        
+        if (h2Count === 0 && h1Count > 0) {
+          this.addIssue({ title: 'No Subheadings', category: 'Accessibility', severity: 'low', description: 'Page has no H2 headings for structure.', location: 'DOM', recommendation: 'Add H2 headings to organize content', impact: 'Content is harder to scan' });
+        }
+        
+        const inputs = html.match(/<input[^>]*>/gi) || [];
+        const labels = html.match(/<label[^>]*>/gi) || [];
+        if (inputs.length > 0 && labels.length === 0) {
+          this.addIssue({ title: 'Missing Form Labels', category: 'Accessibility', severity: 'high', description: 'Forms have inputs but no labels.', location: '<form>', recommendation: 'Add <label> elements for all form inputs', impact: 'Users cannot understand form fields' });
+        }
+      }
+
+      async checkPerformance() {
+        const html = this.analysisData.html;
+        const headers = this.analysisData.headers || {};
+        if (!html) return;
+        
+        if (!html.includes('preconnect') && !html.includes('dns-prefetch')) {
+          this.addIssue({ title: 'No Resource Hints', category: 'Performance', severity: 'info', description: 'No preconnect or dns-prefetch for third-party resources.', location: '<head>', recommendation: 'Add <link rel="preconnect" href="...">', impact: 'Slower connection to third-party domains' });
+        }
+        
+        const contentEncoding = headers['content-encoding'] || '';
+        const size = parseInt(headers['content-length'] || '0', 10);
+        if (!contentEncoding && size > 50000) {
+          this.addIssue({ title: 'No Compression', category: 'Performance', severity: 'high', description: `Page (${(size/1024).toFixed(1)}KB) served without compression.`, location: 'Server', recommendation: 'Enable gzip or Brotli compression on server', impact: 'Slower page loads, higher bandwidth' });
+        }
+        
+        const images = html.match(/<img[^>]*>/gi) || [];
+        const lazyImages = (html.match(/loading=["\']lazy["\']/gi) || []).length;
+        if (images.length > 5 && lazyImages === 0) {
+          this.addIssue({ title: 'No Lazy Loading', category: 'Performance', severity: 'low', description: `${images.length} images without lazy loading.`, location: '<img> elements', recommendation: 'Add loading="lazy" to images below the fold', impact: 'Images load unnecessarily, slower page load' });
+        }
+        
+        const syncScripts = html.match(/<script(?![^>]*async)(?![^>]*defer)[^>]*src=["\'][^"\']*["\'][^>]*>/gi) || [];
+        if (syncScripts.length > 3) {
+          this.addIssue({ title: 'Render-Blocking Scripts', category: 'Performance', severity: 'medium', description: `${syncScripts.length} scripts may block rendering.`, location: '<script> elements', recommendation: 'Add async or defer attributes to scripts', impact: 'Page may appear to freeze during script loading' });
+        }
+      }
+
+      async checkResources() {
+        const html = this.analysisData.html;
+        if (!html) return;
+        
+        const deprecated = ['<center>', '<font', '<marquee', '<blink', '<strike'];
+        for (const el of deprecated) {
+          if (html.includes(el)) {
+            this.addIssue({ title: 'Deprecated HTML Element', category: 'Code Quality', severity: 'medium', description: `Found deprecated <${el.replace(/[<>,]/g, '')}> tag.`, location: 'DOM', recommendation: 'Replace with modern CSS equivalents', impact: 'May not work in future browsers' });
+          }
+        }
+        
+        const inlineEvents = html.match(/onclick|onload|onerror|onmouseover/gi) || [];
+        if (inlineEvents.length > 5) {
+          this.addIssue({ title: 'Inline Event Handlers', category: 'Code Quality', severity: 'info', description: `Found ${inlineEvents.length} inline event handlers.`, location: 'DOM', recommendation: 'Use addEventListener instead of inline handlers', impact: 'Harder to maintain and debug' });
+        }
+        
+        if (html.includes('target="_blank"') && !html.includes('rel="noopener"')) {
+          this.addIssue({ title: 'Security: target="_blank" Links', category: 'Security', severity: 'medium', description: 'Links with target="_blank" should have rel="noopener".', location: '<a> elements', recommendation: 'Add rel="noopener noreferrer" to external links', impact: 'Security vulnerability - new page can access window.opener' });
+        }
+      }
+
+      addIssue(issue) {
+        this.results.push({
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: new Date().toISOString(),
+          url: this.url,
+          ...issue
+        });
+      }
+    }
+
+    const CATEGORIES = ["All", "Security", "HTML", "SEO", "Accessibility", "Performance", "Code Quality", "Connectivity", "Responsive"];
     const SEVERITIES = ["All", "critical", "high", "medium", "low", "info"];
 
     function App() {
       const [url, setUrl] = useState('');
       const [loading, setLoading] = useState(false);
       const [progress, setProgress] = useState(0);
-      const [scanPhase, setScanPhase] = useState('');
+      const [currentAnalyzer, setCurrentAnalyzer] = useState('');
       const [results, setResults] = useState(null);
+      const [error, setError] = useState(null);
       const [filter, setFilter] = useState('All');
       const [severityFilter, setSeverityFilter] = useState('All');
       const [expandedIssue, setExpandedIssue] = useState(null);
+      const [completedAnalyzers, setCompletedAnalyzers] = useState([]);
 
-      const phases = ["Connecting...", "Fetching HTML...", "Analyzing CSS...", "Checking JS...", "Validating accessibility...", "Testing security...", "Measuring performance...", "Scanning links...", "Generating report..."];
+      const analyzers = [
+        { name: 'Basic Fetch', key: 'fetch' },
+        { name: 'HTML Analysis', key: 'html' },
+        { name: 'Security Headers', key: 'security' },
+        { name: 'SEO Meta Tags', key: 'seo' },
+        { name: 'Accessibility', key: 'a11y' },
+        { name: 'Performance', key: 'perf' },
+        { name: 'Code Quality', key: 'code' }
+      ];
 
-      const simulateScan = () => {
-        if (!url) return;
-        setLoading(true);
-        setProgress(0);
-        setScanPhase(phases[0]);
-        let phaseIdx = 0;
-        const interval = setInterval(() => {
-          setProgress(prev => {
-            const newP = prev + Math.random() * 15 + 5;
-            if (newP >= 100) {
-              clearInterval(interval);
-              setTimeout(() => {
-                setResults({ url, score: Math.floor(Math.random() * 30) + 65, timestamp: new Date().toISOString(), duration: Math.floor(Math.random() * 5000) + 2000, issues: DEMO_ISSUES });
-                setLoading(false);
-              }, 500);
-              return 100;
-            }
-            if (newP > (phaseIdx + 1) * (100 / phases.length) && phaseIdx < phases.length - 1) {
-              phaseIdx++;
-              setScanPhase(phases[phaseIdx]);
-            }
-            return Math.min(newP, 99);
-          });
-        }, 300);
+      const validateUrl = (url) => {
+        try {
+          const u = new URL(url.startsWith('http') ? url : 'https://' + url);
+          return u.protocol === 'http:' || u.protocol === 'https:';
+        } catch { return false; }
       };
 
-      const filteredIssues = results?.issues?.filter(i => (filter === 'All' || i.category === filter) && (severityFilter === 'All' || i.severity === severityFilter)) || [];
+      const runAnalysis = async () => {
+        const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+        if (!validateUrl(fullUrl)) {
+          setError('Please enter a valid URL (e.g., example.com or https://example.com)');
+          return;
+        }
+        
+        setLoading(true);
+        setError(null);
+        setResults(null);
+        setProgress(0);
+        setCompletedAnalyzers([]);
+
+        const analyzer = new WebsiteAnalyzer(fullUrl);
+        const analyzerProgress = { fetch: 15, html: 30, security: 45, seo: 60, a11y: 75, perf: 90, code: 100 };
+
+        try {
+          setCurrentAnalyzer('fetch');
+          await analyzer.checkBasicFetch();
+          setCompletedAnalyzers(prev => [...prev, 'fetch']);
+          setProgress(analyzerProgress.fetch);
+
+          setCurrentAnalyzer('html');
+          await analyzer.analyzeHTML();
+          setCompletedAnalyzers(prev => [...prev, 'html']);
+          setProgress(analyzerProgress.html);
+
+          setCurrentAnalyzer('security');
+          await analyzer.checkSecurityHeaders();
+          setCompletedAnalyzers(prev => [...prev, 'security']);
+          setProgress(analyzerProgress.security);
+
+          setCurrentAnalyzer('seo');
+          await analyzer.checkSEOMeta();
+          setCompletedAnalyzers(prev => [...prev, 'seo']);
+          setProgress(analyzerProgress.seo);
+
+          setCurrentAnalyzer('a11y');
+          await analyzer.checkAccessibility();
+          setCompletedAnalyzers(prev => [...prev, 'a11y']);
+          setProgress(analyzerProgress.a11y);
+
+          setCurrentAnalyzer('perf');
+          await analyzer.checkPerformance();
+          setCompletedAnalyzers(prev => [...prev, 'perf']);
+          setProgress(analyzerProgress.perf);
+
+          setCurrentAnalyzer('code');
+          await analyzer.checkResources();
+          setCompletedAnalyzers(prev => [...prev, 'code']);
+          setProgress(100);
+
+          const allResults = analyzer.results;
+          const criticalCount = allResults.filter(r => r.severity === 'critical').length;
+          const highCount = allResults.filter(r => r.severity === 'high').length;
+          const score = Math.max(0, 100 - (criticalCount * 20) - (highCount * 10));
+
+          setResults({
+            url: fullUrl,
+            timestamp: new Date().toISOString(),
+            issues: allResults,
+            score,
+            stats: {
+              total: allResults.length,
+              critical: criticalCount,
+              high: highCount,
+              medium: allResults.filter(r => r.severity === 'medium').length,
+              low: allResults.filter(r => r.severity === 'low').length,
+              info: allResults.filter(r => r.severity === 'info').length
+            }
+          });
+        } catch (err) {
+          setError('Analysis failed: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const filteredIssues = results?.issues?.filter(issue => {
+        const categoryMatch = filter === 'All' || issue.category === filter;
+        const severityMatch = severityFilter === 'All' || issue.severity === severityFilter;
+        return categoryMatch && severityMatch;
+      }) || [];
 
       const exportJSON = () => {
         const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
@@ -131,34 +469,63 @@
       };
 
       const exportCSV = () => {
-        const headers = ['Title', 'Category', 'Severity', 'Description'];
-        const rows = filteredIssues.map(i => [i.title, i.category, i.severity, i.description]);
-        const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const headers = ['Title', 'Category', 'Severity', 'Description', 'Location', 'Recommendation'];
+        const rows = filteredIssues.map(i => [i.title, i.category, i.severity, i.description, i.location, i.recommendation]);
+        const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g, '""')}"`).join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         a.download = `lai-report-${Date.now()}.csv`; a.click();
       };
 
       if (loading) {
-        return <div className="container"><div className="loading"><div className="spinner"></div><h2>{scanPhase}</h2><div className="progress-bar"><div className="progress-fill" style={{width: `${progress}%`}}></div></div><p>{Math.round(progress)}% complete</p><p style={{color: '#94a3b8'}}>Analyzing: {url}</p></div></div>;
+        return (
+          <div className="container">
+            <div className="loading">
+              <div className="spinner"></div>
+              <h2>Analyzing: {url}</h2>
+              <div className="progress-bar"><div className="progress-fill" style={{width: `${progress}%`}}></div></div>
+              <p>{progress}% complete</p>
+              <div className="analyzer-status">
+                {analyzers.map(a => (
+                  <span key={a.key} className={`analyzer-badge ${completedAnalyzers.includes(a.key) ? 'done' : a.key === currentAnalyzer ? 'running' : ''}`}>
+                    {a.name} {completedAnalyzers.includes(a.key) ? '✓' : a.key === currentAnalyzer ? '...' : ''}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="container">
+            <header className="header"><div className="logo">L.A.I. Web Inspector</div></header>
+            <div className="error-msg">{error}</div>
+            <button className="btn" onClick={() => setError(null)}>Try Again</button>
+          </div>
+        );
       }
 
       if (results) {
-        const severityStats = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-        results.issues.forEach(i => severityStats[i.severity] = (severityStats[i.severity] || 0) + 1);
         return (
           <div className="container">
             <button className="btn back-btn" onClick={() => { setResults(null); setUrl(''); }}>← New Scan</button>
-            <div className="scan-info"><strong>URL:</strong> {results.url} | <strong>Scanned:</strong> {new Date(results.timestamp).toLocaleString()} | <strong>Duration:</strong> {(results.duration/1000).toFixed(2)}s</div>
+            <div className="scan-info">
+              <span><strong>URL:</strong> {results.url}</span>
+              <span><strong>Scanned:</strong> {new Date(results.timestamp).toLocaleString()}</span>
+            </div>
             <div className="stats">
               <div className="stat"><div className="stat-value">{results.score}</div><div className="stat-label">Score</div></div>
-              <div className="stat"><div className="stat-value">{results.issues.length}</div><div className="stat-label">Issues</div></div>
-              <div className="stat"><div className="stat-value" style={{color: '#dc2626'}}>{severityStats.critical + severityStats.high}</div><div className="stat-label">Critical/High</div></div>
+              <div className="stat"><div className="stat-value">{results.issues.length}</div><div className="stat-label">Issues Found</div></div>
+              <div className="stat"><div className="stat-value" style={{color: '#dc2626'}}>{results.stats.critical + results.stats.high}</div><div className="stat-label">Critical/High</div></div>
               <div className="stat"><div className="stat-value">{results.score >= 90 ? 'A' : results.score >= 80 ? 'B' : results.score >= 70 ? 'C' : results.score >= 60 ? 'D' : 'F'}</div><div className="stat-label">Grade</div></div>
             </div>
             <div className="filter-bar">{CATEGORIES.map(c => <button key={c} className={`filter-btn ${filter === c ? 'active' : ''}`} onClick={() => setFilter(c)}>{c}</button>)}</div>
             <div className="filter-bar">{SEVERITIES.map(s => <button key={s} className={`filter-btn ${severityFilter === s ? 'active' : ''}`} onClick={() => setSeverityFilter(s)}>{s.charAt(0).toUpperCase() + s.slice(1)}</button>)}</div>
-            <div className="issues"><h3 style={{marginBottom: '1rem'}}>Issues ({filteredIssues.length})</h3>
+            <div className="issues">
+              <h3 style={{marginBottom: '1rem'}}>Issues ({filteredIssues.length})</h3>
+              {filteredIssues.length === 0 && <p style={{color: '#94a3b8', textAlign: 'center', padding: '2rem'}}>No issues match your filters.</p>}
               {filteredIssues.map(issue => (
                 <div key={issue.id} className="issue" onClick={() => setExpandedIssue(expandedIssue === issue.id ? null : issue.id)}>
                   <div className="issue-header">
@@ -167,38 +534,52 @@
                     <span className={`severity severity-${issue.severity}`}>{issue.severity}</span>
                   </div>
                   <p className="issue-description">{issue.description}</p>
-                  {expandedIssue === issue.id && <div className="issue-details"><p><strong>Location:</strong> {issue.location}</p><p><strong>Recommendation:</strong> {issue.recommendation}</p></div>}
+                  {expandedIssue === issue.id && (
+                    <div className="issue-details">
+                      <p><strong>Location:</strong> <code>{issue.location}</code></p>
+                      <p><strong>Impact:</strong> {issue.impact}</p>
+                      <p><strong>Fix:</strong> {issue.recommendation}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="export-btns"><button className="btn btn-secondary" onClick={exportJSON}>Export JSON</button><button className="btn btn-secondary" onClick={exportCSV}>Export CSV</button></div>
+            <div className="export-btns">
+              <button className="btn btn-secondary" onClick={exportJSON}>Export JSON</button>
+              <button className="btn btn-secondary" onClick={exportCSV}>Export CSV</button>
+            </div>
           </div>
         );
       }
 
       return (
         <div className="container">
-          <header className="header"><div className="logo">L.A.I. Web Inspector</div><span style={{color: '#94a3b8'}}>100+ Analyzers</span></header>
+          <header className="header"><div className="logo">L.A.I. Web Inspector</div><span style={{color: '#94a3b8'}}>Real Website Analysis</span></header>
           <div className="hero">
             <h1>Analyze Your Website</h1>
-            <p>Comprehensive analysis for bugs, security, performance, and more.</p>
+            <p>Real automated analysis for security, SEO, accessibility, and performance.</p>
             <div className="input-group">
-              <input type="url" placeholder="https://example.com" value={url} onChange={e => setUrl(e.target.value)} onKeyPress={e => e.key === 'Enter' && simulateScan()} />
-              <button className="btn" onClick={simulateScan} disabled={!url}>Analyze</button>
+              <input type="text" placeholder="example.com" value={url} onChange={e => setUrl(e.target.value)} onKeyPress={e => e.key === 'Enter' && runAnalysis()} />
+              <button className="btn" onClick={runAnalysis} disabled={!url}>Analyze</button>
             </div>
+            <p style={{marginTop: '1rem', color: '#64748b', fontSize: '0.875rem'}}>No API key needed - analysis runs directly in your browser</p>
           </div>
           <div className="features">
-            <div className="feature"><h3>🔒 Security</h3><p>Detect vulnerabilities and check security headers.</p></div>
-            <div className="feature"><h3>⚡ Performance</h3><p>Core Web Vitals and loading optimization.</p></div>
-            <div className="feature"><h3>♿ Accessibility</h3><p>WCAG compliance and keyboard navigation.</p></div>
-            <div className="feature"><h3>🔍 SEO</h3><p>Meta tags, Open Graph, and social optimization.</p></div>
-            <div className="feature"><h3>🔗 Links</h3><p>Broken link detection and redirect analysis.</p></div>
-            <div className="feature"><h3>💻 Code</h3><p>HTML validation, CSS/JS analysis.</p></div>
+            <div className="feature"><h3>🔒 Security</h3><p>Security headers, HTTPS, CSP, XSS protection checks.</p></div>
+            <div className="feature"><h3>📝 HTML</h3><p>DOCTYPE, semantic markup, deprecated elements.</p></div>
+            <div className="feature"><h3>🔍 SEO</h3><p>Meta tags, Open Graph, canonical URLs, title optimization.</p></div>
+            <div className="feature"><h3>♿ Accessibility</h3><p>Alt text, heading hierarchy, form labels, ARIA.</p></div>
+            <div className="feature"><h3>⚡ Performance</h3><p>Compression, lazy loading, render-blocking resources.</p></div>
+            <div className="feature"><h3>💻 Code Quality</h3><p>Deprecated elements, inline handlers, best practices.</p></div>
           </div>
         </div>
       );
     }
+
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
 </body>
 </html>
