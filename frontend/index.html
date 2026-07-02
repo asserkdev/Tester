@@ -179,14 +179,15 @@
           }
           
         } catch (error) {
+          // CORS blocked - show notice about backend requirement
           this.addIssue({
-            title: 'Cannot Analyze HTML (CORS)',
+            title: 'Full Analysis Requires Backend (CORS)',
             category: 'HTML',
             severity: 'info',
-            description: 'Due to CORS restrictions, cannot fetch and analyze the HTML content.',
+            description: 'Due to browser CORS security, cannot fetch HTML content from this domain. Security headers are still analyzed from the HTTP response.',
             location: this.url,
-            recommendation: 'This website blocks cross-origin requests. Try a site that allows CORS.',
-            impact: 'Limited analysis - security headers still checked'
+            recommendation: 'For complete HTML/CSS/JS analysis on all sites, deploy the backend API at: github.com/asserkdev/Tester',
+            impact: 'Limited analysis - HTTP headers and security checks still work'
           });
         }
       }
