@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  pages: write
   contents: write
 
 jobs:
@@ -31,12 +32,17 @@ jobs:
         env:
           CI: true
 
-      - name: Deploy to gh-pages
-        run: |
-          cd frontend/dist
-          git init
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Deploy L.A.I. Web Inspector"
-          git push -f https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/asserkdev/Tester.git master:gh-pages
+      - name: Copy built files
+        run: cp frontend/dist/index.html . && cp -r frontend/dist/assets . 2>/dev/null || true
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
