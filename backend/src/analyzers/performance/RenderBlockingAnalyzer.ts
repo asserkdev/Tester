@@ -74,13 +74,17 @@ export class RenderBlockingAnalyzer extends BaseAnalyzer {
       }));
     }
 
-    // Check for font loading issues
-    const fontPattern = /<link[^>]+rel=["']preload["'][^>]+as=["']font["']/gi;
-    const preloadedFonts = (html.match(fontPattern) || []).length;
+    // Check for Google Fonts without preconnect hints
     const googleFontPattern = /<link[^>]+href=["'][^"']*fonts\.googleapis\.com[^"']*["']/gi;
     const googleFonts = (html.match(googleFontPattern) || []).length;
+    // Check for preconnect to either Google Fonts origin
+    const googlePreconnectPattern = /<link[^>]+rel=["']preconnect["'][^>]*fonts\.(googleapis|gstatic)\.com/gi;
+    const reverseGooglePreconnect = /<link[^>]*fonts\.(googleapis|gstatic)\.com[^>]*rel=["']preconnect["']/gi;
+    const hasGoogleFontsPreconnect =
+      googlePreconnectPattern.test(html) ||
+      reverseGooglePreconnect.test(html);
 
-    if (googleFonts > 0 && preloadedFonts === 0) {
+    if (googleFonts > 0 && !hasGoogleFontsPreconnect) {
       results.push(this.createResult(context, {
         title: 'Google Fonts Loaded Without Preconnect',
         description: 'Page loads Google Fonts without a preconnect hint, causing unnecessary DNS and connection delays.',

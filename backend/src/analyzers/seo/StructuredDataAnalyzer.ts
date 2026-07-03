@@ -62,8 +62,16 @@ export class StructuredDataAnalyzer extends BaseAnalyzer {
       const schema = block.parsed;
       const type = schema['@type'] || 'Unknown';
       const context2 = schema['@context'];
+      // @context can be a string, an array, or an object — normalize to string for checking
+      const contextStr: string = typeof context2 === 'string'
+        ? context2
+        : Array.isArray(context2)
+          ? context2.find((c: unknown) => typeof c === 'string' && (c as string).includes('schema.org')) ?? ''
+          : (typeof context2 === 'object' && context2 !== null)
+            ? JSON.stringify(context2)
+            : '';
 
-      if (!context2 || (!context2.includes('schema.org') && context2 !== 'https://schema.org')) {
+      if (!contextStr || !contextStr.includes('schema.org')) {
         results.push(this.createResult(context, {
           title: `Structured Data Missing @context: ${type}`,
           description: `JSON-LD block with @type "${type}" is missing or has incorrect @context.`,

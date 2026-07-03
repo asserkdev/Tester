@@ -36,9 +36,9 @@ export class ImageAnalyzer extends BaseAnalyzer {
     }
 
     // Check for base64 encoded images (should be external files)
-    const base64Images = (html.match(/src=["']data:image\/[^;]+;base64,[^"']{500,}["']/gi) || []);
+    const base64Images: string[] = html.match(/src=["']data:image\/[^;]+;base64,[^"']{500,}["']/gi) ?? [];
     if (base64Images.length > 2) {
-      const totalBase64Size = base64Images.reduce((sum, img) => sum + img.length, 0);
+      const totalBase64Size = base64Images.reduce((sum: number, img: string) => sum + img.length, 0);
       results.push(this.createResult(context, {
         title: `${base64Images.length} Large Base64-Encoded Images in HTML`,
         description: `Found ${base64Images.length} base64 image(s) embedded directly in HTML (~${Math.round(totalBase64Size / 1024)}KB).`,
